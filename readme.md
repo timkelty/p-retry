@@ -67,10 +67,10 @@ const run = async () => {
 };
 
 const result = await pRetry(run, {
-	onFailedAttempt: ({error, attemptNumber, retriesLeft}) => {
-		console.log(`Attempt ${attemptNumber} failed. There are ${retriesLeft} retries left.`);
-		// 1st request => Attempt 1 failed. There are 5 retries left.
-		// 2nd request => Attempt 2 failed. There are 4 retries left.
+	onFailedAttempt: ({error, attemptNumber, retriesLeft, skippedRetries}) => {
+		console.log(`Attempt ${attemptNumber} failed. There are ${retriesLeft} retries left (${skippedRetries} skipped).`);
+		// 1st request => Attempt 1 failed. There are 5 retries left (0 skipped).
+		// 2nd request => Attempt 2 failed. There are 4 retries left (0 skipped).
 		// …
 	},
 	retries: 5
@@ -113,7 +113,7 @@ import pRetry from 'p-retry';
 const run = async () => { … };
 
 const result = await pRetry(run, {
-	shouldRetry: ({error, attemptNumber, retriesLeft}) => !(error instanceof CustomError)
+	shouldRetry: ({error, attemptNumber, retriesLeft, skippedRetries}) => !(error instanceof CustomError)
 });
 ```
 
@@ -125,7 +125,7 @@ Type: `Function`
 
 Decide if an error should be skipped and not count against the retry limit.
 
-The `context` object contains the same information as `shouldRetry` and `onFailedAttempt`, including `error`, `attemptNumber`, and `retriesLeft`.
+The `context` object contains the same information as `shouldRetry` and `onFailedAttempt`, including `error`, `attemptNumber`, `retriesLeft`, and `skippedRetries`.
 
 Skipped errors do not consume retries but still invoke `onFailedAttempt`.
 

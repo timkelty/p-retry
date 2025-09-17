@@ -13,6 +13,7 @@ expectType<Promise<void>>(
 			expectType<RetryContext>(context);
 			expectType<number>(context.attemptNumber);
 			expectType<number>(context.retriesLeft);
+			expectType<number>(context.skippedRetries);
 		},
 	}),
 );
@@ -27,6 +28,7 @@ expectType<Promise<string>>(
 		async shouldSkip(context) {
 			expectType<RetryContext>(context);
 			expectType<Error>(context.error);
+			expectType<number>(context.skippedRetries);
 			return false;
 		},
 		minTimeout: 0,

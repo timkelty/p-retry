@@ -1034,7 +1034,7 @@ test('retriesLeft is Infinity when retries is Infinity', async t => {
 	t.is(observed, Number.POSITIVE_INFINITY);
 });
 
-test('wont count SkipError as attempt', async t => {
+test('wont count skipped errors as attempt', async t => {
 	let attempts = 0;
 	const maxAttempts = 3;
 
@@ -1056,4 +1056,75 @@ test('wont count SkipError as attempt', async t => {
 	));
 
 	t.is(attempts, maxAttempts);
+});
+
+test('skipped retries are reflected in context', async t => {
+	const observed = [];
+	let attempts = 0;
+
+	await t.throwsAsync(pRetry(
+		async () => {
+			attempts++;
+
+			if (attempts === 3) {
+				throw new AbortError('stop');
+			}
+
+			throw new Error('skip');
+		},
+		{
+			retries: 1,
+			minTimeout: 0,
+			onFailedAttempt(context) {
+				observed.push({skipped: context.skippedRetries, attempt: context.attemptNumber});
+			},
+			shouldSkip: ({error, retriesLeft}) => error.message === 'skip' && retriesLeft >= 0,
+		},
+	), {message: 'stop'});
+
+	t.deepEqual(observed, [
+		{skipped: 1, attempt: 1},
+		{skipped: 2, attempt: 2},
+	]);
+	t.is(attempts, 3);
+});
+
+test.serial('skipped retries do not increase delay or reach maxTimeout', async t => {
+	const observedDelays = [];
+	const originalSetTimeout = setTimeout;
+
+	// eslint-disable-next-line no-global-assign
+	setTimeout = (callback, delay, ...arguments_) => {
+		observedDelays.push(delay);
+		return originalSetTimeout(callback, delay, ...arguments_);
+	};
+
+	let attempts = 0;
+
+	try {
+		await t.throwsAsync(pRetry(
+			async () => {
+				attempts++;
+
+				if (attempts <= 2) {
+					throw new Error('skip');
+				}
+
+				throw new AbortError('stop');
+			},
+			{
+				retries: 2,
+				minTimeout: 50,
+				maxTimeout: 75,
+				factor: 2,
+				shouldSkip: ({error}) => error.message === 'skip',
+			},
+		), {message: 'stop'});
+	} finally {
+		// eslint-disable-next-line no-global-assign
+		setTimeout = originalSetTimeout;
+	}
+
+	t.is(attempts, 3);
+	t.deepEqual(observedDelays, [50, 50]);
 });
