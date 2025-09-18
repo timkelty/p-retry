@@ -160,36 +160,24 @@ export default async function pRetry(input, options = {}) {
 		const retriesLeft = Number.isFinite(totalRetries)
 			? Math.max(0, totalRetries - retriesUsed)
 			: totalRetries;
-		const skippedRetries = Math.max(0, (attemptNumber - 1) - retriesUsed);
+			
+		let skippedRetries = Math.max(0, (attemptNumber - 1) - retriesUsed);
+		let context = {
+			error,
+			attemptNumber,
+			retriesLeft,
+			skippedRetries,
+			startTime,
+			maxRetryTime,
+		};
 
-	const baseContext = Object.freeze({
-		error,
-		attemptNumber,
-		retriesLeft,
-		skippedRetries,
-		skip: false,
-		startTime,
-		maxRetryTime,
-	});
+		context.skip = await options.shouldSkip(Object.freeze(Object.assign({}, context, {skip: false})));
 
-		let skip;
-		try {
-			skip = Boolean(await options.shouldSkip(baseContext));
-		} catch (skipError) {
-			await onAttemptFailure(baseContext, options);
-			throw skipError;
+		if (context.skip) {
+			context.skippedRetries++;
 		}
 
-		let context = baseContext;
-		if (skip) {
-			context = Object.freeze({
-				...baseContext,
-				skippedRetries: skippedRetries + 1,
-				skip: true,
-			});
-		}
-
-		return context;
+		return Object.freeze(context);
 	};
 
 	while (Number.isFinite(totalRetries) ? retriesUsed <= totalRetries : true) {
