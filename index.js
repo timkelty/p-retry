@@ -81,15 +81,11 @@ async function onAttemptFailure(context, options) {
 	const timeElapsed = currentTime - startTime;
 	const timeLeft = maxRetryTime - timeElapsed;
 
-	if (timeLeft <= 0) {
-		throw normalizedError;
-	}
-
-	if (!context.skip && context.retriesLeft <= 0) {
-		throw normalizedError;
-	}
-
-	if (!(await options.shouldRetry(context))) {
+	if (
+		timeLeft <= 0 ||
+		(!context.skip && context.retriesLeft <= 0) ||
+		!(await options.shouldRetry(context))
+	) {
 		throw normalizedError;
 	}
 

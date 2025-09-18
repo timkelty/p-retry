@@ -95,9 +95,11 @@ export type Options = {
 	/**
 	Decide if an error should be skipped and not count against the retry limit.
 
-	Skipped errors do not consume retries but still invoke `onFailedAttempt`.
+	Skipped errors do not consume retries or impact backoff, but still invoke `onFailedAttempt`.
 
 	Provides the same `context` object as `shouldRetry` and `onFailedAttempt`.
+
+	`RetryContext.skip` is always `false` within the `shouldSkip` callback.
 
 	@example
 	```
