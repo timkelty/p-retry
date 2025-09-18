@@ -49,7 +49,8 @@ export class AbortError extends Error {
 	}
 }
 
-function calculateDelay(attempt, options) {
+function calculateDelay(context, options) {
+	const attempt = Math.max(1, context.attemptNumber - context.skippedRetries);
 	const random = options.randomize ? (Math.random() + 1) : 1;
 
 	let timeout = Math.round(random * Math.max(options.minTimeout, 1) * (options.factor ** (attempt - 1)));
@@ -60,7 +61,7 @@ function calculateDelay(attempt, options) {
 
 async function onAttemptFailure(context, options) {
 	let normalizedError = context.error;
-	const {startTime, maxRetryTime, effectiveAttemptNumber} = context;
+	const {startTime, maxRetryTime} = context;
 
 	if (!(normalizedError instanceof Error)) {
 		normalizedError = new TypeError(`Non-error was thrown: "${normalizedError}". You should only throw errors.`);
@@ -93,7 +94,7 @@ async function onAttemptFailure(context, options) {
 	}
 
 	if (!context.skip) {
-		const delayTime = calculateDelay(effectiveAttemptNumber, options);
+		const delayTime = calculateDelay(context, options);
 		const finalDelay = Math.min(delayTime, timeLeft);
 
 		if (finalDelay > 0) {
@@ -164,7 +165,6 @@ export default async function pRetry(input, options = {}) {
 			? Math.max(0, totalRetries - retriesUsed)
 			: totalRetries;
 		const skippedRetries = Math.max(0, (attemptNumber - 1) - retriesUsed);
-		const effectiveAttemptNumber = retriesUsed + 1;
 
 	const baseContext = Object.freeze({
 		error,
@@ -174,7 +174,6 @@ export default async function pRetry(input, options = {}) {
 		skip: false,
 		startTime,
 		maxRetryTime,
-		effectiveAttemptNumber,
 	});
 
 		let skip;
@@ -185,22 +184,16 @@ export default async function pRetry(input, options = {}) {
 			throw skipError;
 		}
 
-		if (!skip) {
-			return {context: baseContext, skip: false};
+		let context = baseContext;
+		if (skip) {
+			context = Object.freeze({
+				...baseContext,
+				skippedRetries: skippedRetries + 1,
+				skip: true,
+			});
 		}
 
-		const skipContext = Object.freeze({
-			error,
-			attemptNumber,
-			retriesLeft,
-			skippedRetries: skippedRetries + 1,
-			skip: true,
-			startTime,
-			maxRetryTime,
-			effectiveAttemptNumber,
-		});
-
-		return {context: skipContext, skip: true};
+		return context;
 	};
 
 	while (Number.isFinite(totalRetries) ? retriesUsed <= totalRetries : true) {
@@ -215,9 +208,9 @@ export default async function pRetry(input, options = {}) {
 
 			return result;
 		} catch (error) {
-			const {context, skip} = await createRetryContext({error, attemptNumber, retriesUsed});
+			const context = await createRetryContext({error, attemptNumber, retriesUsed});
 			await onAttemptFailure(context, options);
-			if (!skip) {
+			if (!context.skip) {
 				retriesUsed++;
 			}
 		}
