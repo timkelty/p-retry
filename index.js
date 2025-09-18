@@ -160,7 +160,6 @@ export default async function pRetry(input, options = {}) {
 		const retriesLeft = Number.isFinite(totalRetries)
 			? Math.max(0, totalRetries - retriesUsed)
 			: totalRetries;
-			
 		let skippedRetries = Math.max(0, (attemptNumber - 1) - retriesUsed);
 		let context = {
 			error,

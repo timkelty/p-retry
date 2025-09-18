@@ -1124,20 +1124,27 @@ test('throws error from shouldRetry', async t => {
 });
 
 test('retriesLeft is Infinity when retries is Infinity', async t => {
-	let observed;
+	const observed = [];
+	const maxAttempts = 4;
 
 	await t.throwsAsync(pRetry(async () => {
 		throw new Error('fail');
 	}, {
 		retries: Number.POSITIVE_INFINITY,
-		onFailedAttempt({retriesLeft}) {
-			observed = retriesLeft;
-			throw new Error('stop');
-		},
 		minTimeout: 0,
+		onFailedAttempt(context) {
+			observed.push(context.retriesLeft);
+			if (observed.length >= maxAttempts) {
+				throw new AbortError('stop');
+			}
+		},
 	}));
 
-	t.is(observed, Number.POSITIVE_INFINITY);
+	for (const retriesLeft of observed) {
+		t.is(retriesLeft, Number.POSITIVE_INFINITY);
+	}
+
+	t.is(observed.length, maxAttempts);
 });
 
 test('wont count skips as attempt', async t => {

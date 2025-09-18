@@ -123,11 +123,11 @@ In the example above, the operation will be retried unless the error is an insta
 
 Type: `Function`
 
-Decide if an error should be skipped and not count against the retry limit.
+Decide if an error should be "skipped".
 
-The `context` object contains the same information as `shouldRetry` and `onFailedAttempt`, including `error`, `attemptNumber`, `retriesLeft`, `skip`, and `skippedRetries`.
+Skipped errors do not consume retries or impact backoff, but still invoke `onFailedAttempt`.
 
-Skipped errors do not consume retries but still invoke `onFailedAttempt`.
+Receives the same `context` object as `shouldRetry` and `onFailedAttempt`.
 
 ```js
 import pRetry from 'p-retry';
